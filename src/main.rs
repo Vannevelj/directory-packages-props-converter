@@ -1,5 +1,5 @@
 mod options;
-use std::{path::PathBuf, collections::HashMap, fs};
+use std::{path::{PathBuf, Path}, collections::HashMap, fs};
 
 use log::{debug, info};
 use roxmltree::Document;
@@ -22,7 +22,7 @@ fn main() {
     let mut files_of_interest: HashMap<String, Vec<PackageVersion>> = HashMap::new();
 
     // look for interesting files (.csproj / Directory.Build.props)
-    traverse_directories(&args.path, &mut files_of_interest);
+    traverse_directories(&expand_path(args.path), &mut files_of_interest);
     
     // Write a Directory.Packages.props file
     // Update the <PackageReference> elements to remove the Version property
@@ -35,11 +35,11 @@ fn main() {
     }
 }
 
-// fn expand_path(input: PathBuf) -> PathBuf {
-//     let path = parse_path(input);
-//     let expanded_path: String = shellexpand::tilde(&path).to_string();
-//     Path::new(&expanded_path).to_owned()
-// }
+fn expand_path(input: PathBuf) -> PathBuf {
+    let path = parse_path(input);
+    let expanded_path: String = shellexpand::tilde(&path).to_string();
+    Path::new(&expanded_path).to_owned()
+}
 
 fn parse_path(path: PathBuf) -> String {
     path.to_owned().into_os_string().into_string().expect("Failed to parse path")
