@@ -1,0 +1,35 @@
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-mac:
+    name: Mac executable
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cargo build --release --all-features
+      - name: 'Upload Artifact'
+        uses: actions/upload-artifact@v2
+        with:
+          name: backup-rs-mac
+          path: target/release/directory-packages-props-converter
+
+  build-windows:
+    name: Windows executable
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cargo build --release --all-features
+      - name: 'Upload Artifact'
+        uses: actions/upload-artifact@v2
+        with:
+          name: backup-rs-win
+          path: target/release/directory-packages-props-converter.exe
