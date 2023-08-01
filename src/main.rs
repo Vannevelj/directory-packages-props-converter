@@ -1,7 +1,7 @@
 mod options;
 use std::{path::{PathBuf, Path}, collections::HashMap, fs};
 
-use log::{debug, info};
+use log::debug;
 use roxmltree::Document;
 use structopt::StructOpt;
 
@@ -56,7 +56,7 @@ fn traverse_directories(
         if is_interesting {
             // Gather the versions for each <PackageReference> in the file
             let filename = parse_path(path.to_owned());
-            let package_versions = parse_package_versions(&path);
+            let package_versions = parse_package_versions(path);
             files_of_interest.insert(filename.to_owned(), package_versions);
         }
 
@@ -68,13 +68,13 @@ fn traverse_directories(
     for entry in fs::read_dir(path).unwrap().flatten() {
         let directory_name = parse_path(entry.path());
 
-        info!("Evaluating {}", directory_name);
+        debug!("Evaluating {}", directory_name);
         traverse_directories(&entry.path(), files_of_interest);
     }
 }
 
 fn parse_package_versions(path: &PathBuf) -> Vec<PackageVersion> {
-    let contents = fs::read_to_string(&path).expect("Failed to read file");
+    let contents = fs::read_to_string(path).expect("Failed to read file");
     let xml_document = Document::parse(&contents).expect("Failed to parse XML");
 
     let package_reference_nodes = xml_document.descendants().filter(|node| node.tag_name().name() == "PackageReference");
