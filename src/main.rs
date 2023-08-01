@@ -1,7 +1,8 @@
 mod options;
-use std::{path::{PathBuf, Path}, collections::{HashSet, HashMap}, fs, ffi::{OsStr, OsString}};
+use std::{path::PathBuf, collections::HashMap, fs};
 
 use log::{debug, info};
+use roxmltree::Document;
 use structopt::StructOpt;
 
 use crate::options::Options as CLIopts;
@@ -27,8 +28,10 @@ fn main() {
     // Update the <PackageReference> elements to remove the Version property
     // Write output to indicate which references got their version lifted
 
-    for (key, value) in files_of_interest {
-        println!("{}", key);
+    for (file_name, package_versions) in files_of_interest {
+        for package_version in package_versions {
+            println!("{}: {} ({})", file_name, package_version.name, package_version.version);
+        }
     }
 }
 
@@ -53,7 +56,7 @@ fn traverse_directories(
         if is_interesting {
             // Gather the versions for each <PackageReference> in the file
             let filename = parse_path(path.to_owned());
-            let package_versions: Vec<PackageVersion> = Vec::new();
+            let package_versions = parse_package_versions(&path);
             files_of_interest.insert(filename.to_owned(), package_versions);
         }
 
@@ -68,4 +71,28 @@ fn traverse_directories(
         info!("Evaluating {}", directory_name);
         traverse_directories(&entry.path(), files_of_interest);
     }
+}
+
+fn parse_package_versions(path: &PathBuf) -> Vec<PackageVersion> {
+    let contents = fs::read_to_string(&path).expect("Failed to read file");
+    let xml_document = Document::parse(&contents).expect("Failed to parse XML");
+
+    let package_reference_nodes = xml_document.descendants().filter(|node| node.tag_name().name() == "PackageReference");
+    let mut package_versions: Vec<PackageVersion> = Vec::new();
+
+    for package_reference_node in package_reference_nodes {
+        let version_attribute = package_reference_node.attribute("Version");
+        let include_attribute = package_reference_node.attribute("Include");
+        
+        let package_version = match (version_attribute, include_attribute) {
+            (Some(version), Some(name)) => Some(PackageVersion { name: name.to_string(), version: version.to_string()}),
+            _ => None
+        };
+
+        if let Some(package_version) = package_version {
+            package_versions.push(package_version);
+        }
+    }
+
+    package_versions
 }
