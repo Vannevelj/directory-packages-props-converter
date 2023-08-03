@@ -1,15 +1,16 @@
 mod options;
-use std::{path::{PathBuf, Path}, collections::HashMap, fs};
-
-use log::debug;
+use std::{path::{PathBuf, Path}, collections::HashMap, fs::{self, File}};
+use std::io::Write;
+use log::{debug, info};
 use roxmltree::Document;
+use semver::Version;
 use structopt::StructOpt;
 
 use crate::options::Options as CLIopts;
 
 struct PackageVersion {
     name: String,
-    version: String,
+    version: Version,
 }
 
 fn main() {
@@ -19,35 +20,31 @@ fn main() {
 
     let args = CLIopts::from_args();
 
-    let mut files_of_interest: HashMap<String, Vec<PackageVersion>> = HashMap::new();
+    let mut files_of_interest: HashMap<PathBuf, Vec<PackageVersion>> = HashMap::new();
 
     // look for interesting files (.csproj / Directory.Build.props)
-    traverse_directories(&expand_path(args.path), &mut files_of_interest);
+    traverse_directories(&expand_path(&args.path), &mut files_of_interest);
+
+    write_directory_packages_props_file(&files_of_interest, &args.path);
     
     // Write a Directory.Packages.props file
     // Update the <PackageReference> elements to remove the Version property
     // Write output to indicate which references got their version lifted
-
-    for (file_name, package_versions) in files_of_interest {
-        for package_version in package_versions {
-            println!("{}: {} ({})", file_name, package_version.name, package_version.version);
-        }
-    }
 }
 
-fn expand_path(input: PathBuf) -> PathBuf {
+fn expand_path(input: &PathBuf) -> PathBuf {
     let path = parse_path(input);
     let expanded_path: String = shellexpand::tilde(&path).to_string();
     Path::new(&expanded_path).to_owned()
 }
 
-fn parse_path(path: PathBuf) -> String {
+fn parse_path(path: &PathBuf) -> String {
     path.to_owned().into_os_string().into_string().expect("Failed to parse path")
 }
 
 fn traverse_directories(
     path: &PathBuf,
-    files_of_interest: &mut HashMap<String, Vec<PackageVersion>>,
+    files_of_interest: &mut HashMap<PathBuf, Vec<PackageVersion>>,
 ) {
     let metadata = fs::metadata(path).expect("Failed to retrieve file metadata");
     if metadata.is_file() {
@@ -55,9 +52,8 @@ fn traverse_directories(
 
         if is_interesting {
             // Gather the versions for each <PackageReference> in the file
-            let filename = parse_path(path.to_owned());
             let package_versions = parse_package_versions(path);
-            files_of_interest.insert(filename.to_owned(), package_versions);
+            files_of_interest.insert(path.to_owned(), package_versions);
         }
 
         return;
@@ -66,7 +62,7 @@ fn traverse_directories(
     debug!("Diving into new directory: {:?}", path);
 
     for entry in fs::read_dir(path).unwrap().flatten() {
-        let directory_name = parse_path(entry.path());
+        let directory_name = parse_path(&entry.path());
 
         debug!("Evaluating {}", directory_name);
         traverse_directories(&entry.path(), files_of_interest);
@@ -83,9 +79,11 @@ fn parse_package_versions(path: &PathBuf) -> Vec<PackageVersion> {
     for package_reference_node in package_reference_nodes {
         let version_attribute = package_reference_node.attribute("Version");
         let include_attribute = package_reference_node.attribute("Include");
-        
-        let package_version = match (version_attribute, include_attribute) {
-            (Some(version), Some(name)) => Some(PackageVersion { name: name.to_string(), version: version.to_string()}),
+
+        let version = version_attribute.and_then(|attr| Version::parse(attr).ok());
+
+        let package_version = match (version, include_attribute) {
+            (Some(version), Some(name)) => Some(PackageVersion { name: name.to_string(), version}),
             _ => None
         };
 
@@ -95,4 +93,56 @@ fn parse_package_versions(path: &PathBuf) -> Vec<PackageVersion> {
     }
 
     package_versions
+}
+
+fn write_directory_packages_props_file(files_of_interest: &HashMap<PathBuf, Vec<PackageVersion>>, root: &Path) {
+    let all_references = files_of_interest.values().flatten();
+    let mut chosen_references: Vec<&PackageVersion> = Vec::new();
+    
+    for reference in all_references {
+        let existing_reference = chosen_references.iter().find(|r| r.name == reference.name);
+        match existing_reference {
+            Some(existing) if existing.version > reference.version => chosen_references.push(reference),
+            None => chosen_references.push(reference),
+            _ => ()
+        }
+    }
+
+    for (filename, dependencies) in files_of_interest {
+        for dependency in dependencies {
+            let selected_dependency = chosen_references.iter().find(|dep| dep.name == dependency.name).expect("Failed to find selected dependency version");
+            if dependency.version != selected_dependency.version {
+                info!("{}: Upgrading {} from {} to {}", strip_path(&filename), dependency.name, dependency.version, selected_dependency.version)
+            }
+        }
+    }
+
+    let directory_packages_props_file = root.join("Directory.Packages.props");
+    info!("Writing Directory.Packages.props to {}", parse_path(&directory_packages_props_file));
+    let mut directory_packages_props_file = File::create(directory_packages_props_file).expect("Failed to create Directory.Packages.props file");
+
+    let mut contents = r#"
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+
+"#.to_owned();
+
+    for package in chosen_references {
+        contents.push_str(format!("     <PackageVersion Include=\"{}\" Version=\"{}\" />\n", package.name, package.version).as_str());
+    }
+
+    contents.push_str(r#"  
+    </ItemGroup>
+</Project>"#);
+
+    directory_packages_props_file.write_all(contents.as_bytes()).expect("Failed to write Directory.Packages.props file");
+}
+
+fn strip_path(path: &Path) -> String {
+    let path = path.file_name().unwrap();
+    path.to_str().to_owned().unwrap().to_string()
 }

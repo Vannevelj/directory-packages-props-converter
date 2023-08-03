@@ -119,6 +119,7 @@ dependencies = [
  "env_logger",
  "log",
  "roxmltree",
+ "semver",
  "shellexpand",
  "structopt",
  "thiserror",
@@ -485,6 +486,12 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "semver"
+version = "1.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0293b4b29daaf487284529cc2f5675b8e57c61f70167ba415a463651fd6a918"
 
 [[package]]
 name = "shellexpand"
