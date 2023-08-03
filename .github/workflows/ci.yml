@@ -47,7 +47,7 @@ jobs:
 
         - name: Push a tag
           id: push_tag
-          uses: mathieudutour/github-tag-action@v6
+          uses: mathieudutour/github-tag-action@v6.1
           with:
             github_token: ${{ secrets.GITHUB_TOKEN }}
             custom_tag: ${{ steps.changelog_reader.outputs.version }}
