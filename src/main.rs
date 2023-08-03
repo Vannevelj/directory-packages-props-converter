@@ -13,6 +13,7 @@ use structopt::StructOpt;
 
 use crate::options::Options as CLIopts;
 
+#[derive(Hash, Eq, PartialEq, Debug)]
 struct PackageVersion {
     name: String,
     version: Version,
@@ -53,7 +54,10 @@ fn traverse_directories(
     if metadata.is_file() {
         let is_interesting = path
             .extension()
-            .is_some_and(|ext| ext.to_os_string() == "csproj");
+            .is_some_and(|ext| ext.to_os_string() == "csproj")
+            || path
+                .file_name()
+                .is_some_and(|name| name == "Directory.Build.props");
 
         if is_interesting {
             // Gather the versions for each <PackageReference> in the file
@@ -67,9 +71,6 @@ fn traverse_directories(
     debug!("Diving into new directory: {:?}", path);
 
     for entry in fs::read_dir(path).unwrap().flatten() {
-        let directory_name = parse_path(&entry.path());
-
-        debug!("Evaluating {}", directory_name);
         traverse_directories(&entry.path(), files_of_interest);
     }
 }
@@ -106,29 +107,44 @@ fn write_directory_packages_props_file(
     root: &Path,
 ) {
     let all_references = files_of_interest.values().flatten();
-    let mut chosen_references: Vec<&PackageVersion> = Vec::new();
+    let mut chosen_references: HashMap<String, &PackageVersion> = HashMap::new();
 
     for reference in all_references {
-        let existing_reference = chosen_references.iter().find(|r| r.name == reference.name);
+        let existing_reference = chosen_references.get(&reference.name);
         match existing_reference {
-            Some(existing) if existing.version > reference.version => {
-                chosen_references.push(reference)
+            Some(existing) if reference.version > existing.version => {
+                debug!(
+                    "Replacing {} {} with {}",
+                    reference.name, existing.version, reference.version
+                );
+                chosen_references.insert(reference.name.to_owned(), reference);
             }
-            None => chosen_references.push(reference),
+            None => {
+                debug!("Adding {} {}", reference.name, reference.version);
+                chosen_references.insert(reference.name.to_owned(), reference);
+            }
             _ => (),
         }
+    }
+
+    for (_, chosen_reference) in &chosen_references {
+        debug!(
+            "Selected {}: {}",
+            chosen_reference.name, chosen_reference.version
+        );
     }
 
     // Write output to indicate which references got their version lifted
     for (filename, dependencies) in files_of_interest {
         for dependency in dependencies {
             let selected_dependency = chosen_references
-                .iter()
-                .find(|dep| dep.name == dependency.name)
+                .get(&dependency.name)
                 .expect("Failed to find selected dependency version");
+
+            // https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
             if dependency.version != selected_dependency.version {
                 info!(
-                    "{}: Upgrading {} from {} to {}",
+                    "{}: Upgrading {} from \x1b[93m{}\x1b[0m to \x1b[92m{}\x1b[0m",
                     strip_path(&filename),
                     dependency.name,
                     dependency.version,
@@ -157,10 +173,13 @@ fn write_directory_packages_props_file(
 "#
     .to_owned();
 
-    for package in chosen_references {
+    let mut sorted_references: Vec<&PackageVersion> =
+        chosen_references.into_values().into_iter().collect();
+    sorted_references.sort_unstable_by_key(|dep| &dep.name);
+    for package in sorted_references {
         contents.push_str(
             format!(
-                "     <PackageVersion Include=\"{}\" Version=\"{}\" />\n",
+                "    <PackageVersion Include=\"{}\" Version=\"{}\" />\n",
                 package.name, package.version
             )
             .as_str(),
@@ -169,7 +188,7 @@ fn write_directory_packages_props_file(
 
     contents.push_str(
         r#"  
-    </ItemGroup>
+  </ItemGroup>
 </Project>"#,
     );
 
