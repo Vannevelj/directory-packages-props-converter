@@ -69,10 +69,12 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: directory-packages-props-converter-mac
+          path: .
 
       - uses: actions/download-artifact@v3
         with:
           name: directory-packages-props-converter-win.exe
+          path: .
 
       - name: Upload Windows Release Asset
         uses: actions/upload-release-asset@v1

@@ -184,7 +184,7 @@ fn strip_path(path: &Path) -> String {
 }
 
 fn strip_version_attributes(files_of_interest: &HashMap<PathBuf, Vec<PackageVersion>>) {
-    let re = Regex::new("(?<rest><PackageReference.*)(?<version> Version=\".*\")").unwrap();
+    let re = Regex::new("(?<rest><PackageReference.*)(?<version> Version=\".*?\")").unwrap();
 
     for (file, _) in files_of_interest {
         let contents = fs::read_to_string(file).expect("Failed to read file");
