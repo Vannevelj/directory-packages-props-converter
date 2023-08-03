@@ -46,26 +46,6 @@ jobs:
         with:
           path: ./CHANGELOG.md
 
-      - name: Push a tag
-        id: push_tag
-        uses: mathieudutour/github-tag-action@v6.1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          custom_tag: ${{ steps.changelog_reader.outputs.version }}
-          release_branches: master
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1.1.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ steps.changelog_reader.outputs.version }}
-          release_name: ${{ steps.changelog_reader.outputs.version }}
-          body: ${{ steps.changelog_reader.outputs.changes }}
-          prerelease: ${{ steps.changelog_reader.outputs.status == 'prereleased' }}
-          draft: false
-
       - uses: actions/download-artifact@v3
         with:
           name: directory-packages-props-converter-mac
@@ -76,22 +56,21 @@ jobs:
           name: directory-packages-props-converter-win.exe
           path: .
 
-      - name: Upload Windows Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push a tag
+        id: push_tag
+        uses: mathieudutour/github-tag-action@v6.1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./directory-packages-props-converter-win.exe
-          asset_name: directory-packages-props-converter.exe
-          asset_content_type: application/executable
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          custom_tag: ${{ steps.changelog_reader.outputs.version }}
+          release_branches: master
 
-      - name: Upload Mac Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Release
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./directory-packages-props-converter-mac
-          asset_name: directory-packages-props-converter
-          asset_content_type: application/executable
+          body: ${{ steps.changelog_reader.outputs.changes }}
+          tag_name: v${{ steps.changelog_reader.outputs.version }}
+          name: ${{ steps.changelog_reader.outputs.version }}
+          files: |
+            directory-packages-props-converter.exe
+            directory-packages-props-converter
+            LICENSE
