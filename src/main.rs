@@ -2,6 +2,7 @@ mod options;
 use std::{path::{PathBuf, Path}, collections::HashMap, fs::{self, File}};
 use std::io::Write;
 use log::{debug, info};
+use regex::Regex;
 use roxmltree::Document;
 use semver::Version;
 use structopt::StructOpt;
@@ -25,11 +26,11 @@ fn main() {
     // look for interesting files (.csproj / Directory.Build.props)
     traverse_directories(&expand_path(&args.path), &mut files_of_interest);
 
+    // Write a Directory.Packages.props file
     write_directory_packages_props_file(&files_of_interest, &args.path);
     
-    // Write a Directory.Packages.props file
     // Update the <PackageReference> elements to remove the Version property
-    // Write output to indicate which references got their version lifted
+    strip_version_attributes(&files_of_interest);
 }
 
 fn expand_path(input: &PathBuf) -> PathBuf {
@@ -108,6 +109,7 @@ fn write_directory_packages_props_file(files_of_interest: &HashMap<PathBuf, Vec<
         }
     }
 
+    // Write output to indicate which references got their version lifted
     for (filename, dependencies) in files_of_interest {
         for dependency in dependencies {
             let selected_dependency = chosen_references.iter().find(|dep| dep.name == dependency.name).expect("Failed to find selected dependency version");
@@ -145,4 +147,16 @@ fn write_directory_packages_props_file(files_of_interest: &HashMap<PathBuf, Vec<
 fn strip_path(path: &Path) -> String {
     let path = path.file_name().unwrap();
     path.to_str().to_owned().unwrap().to_string()
+}
+
+fn strip_version_attributes(files_of_interest: &HashMap<PathBuf, Vec<PackageVersion>>) {
+    let re = Regex::new("(?<rest><PackageReference.*)(?<version> Version=\".*\")").unwrap();
+
+    for (file, _) in files_of_interest {
+        let contents = fs::read_to_string(file).expect("Failed to read file");
+        let result = re.replace_all(&contents, "$rest").to_string();
+
+        let mut file = File::create(file).expect("Failed to open file for writing");
+        file.write_all(result.as_bytes()).expect("Failed to write <PackageReference> updates");
+    }
 }

@@ -118,6 +118,7 @@ version = "0.1.0"
 dependencies = [
  "env_logger",
  "log",
+ "regex",
  "roxmltree",
  "semver",
  "shellexpand",
