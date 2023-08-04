@@ -13,10 +13,46 @@ chmod +x ./directory-packages-props-converter
 ./directory-packages-props-converter .
 ```
 
+If your Mac prevents you from running the executable, right-click the executable and select "Open" to override the default block.
+
+---
+
 Windows:
 
 ```sh
 .\directory-packages-props-converter.exe .
+```
+
+
+Once you've ran the script, you'll see a new `Directory.Packages.props` like this:
+
+```xml
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+
+    <PackageVersion Include="MSTest.TestAdapter" Version="3.0.2" />
+    <PackageVersion Include="MSTest.TestFramework" Version="3.0.2" />
+    <PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc" Version="2.2.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis" Version="4.4.0" />
+  
+  </ItemGroup>
+</Project>
+```
+
+and corresponding `.csproj` changes like this
+
+```diff
+<ItemGroup>
+-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.4.1" />
+-    <PackageReference Include="MSTest.TestAdapter" Version="3.0.2" />
++    <PackageReference Include="Microsoft.NET.Test.Sdk" />
++    <PackageReference Include="MSTest.TestAdapter" />
+</ItemGroup>
 ```
 
 ## Notes
