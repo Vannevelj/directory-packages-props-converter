@@ -1,7 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [0.0.2] - 2023-08-03
+## [0.0.3] - 2023-08-04
+* When a version range along the lines of `[1.1.0, 2]` is encountered, it will include it in `Directory.Packages.props`
+
+## [0.0.2] - 2023-08-04
 * Fixed an issue where it wouldn't correctly determine the most recent package version
 * Dependencies are written in alphabetical order to `Directory.Packages.props`
 * Support `Directory.Build.props`

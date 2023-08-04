@@ -113,9 +113,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "directory-packages-props-converter"
-version = "0.0.2"
+name = "ctor"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f34ba9a9bcb8645379e9de8cb3ecfcf4d1c85ba66d90deb3259206fa5aa193b"
 dependencies = [
+ "quote",
+ "syn 2.0.28",
+]
+
+[[package]]
+name = "directory-packages-props-converter"
+version = "0.0.3"
+dependencies = [
+ "ctor",
  "env_logger",
  "log",
  "regex",

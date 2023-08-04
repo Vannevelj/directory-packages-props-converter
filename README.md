@@ -22,3 +22,4 @@ Windows:
 
 * When multiple versions are detected for a particular dependency, the highest version number is used
 * Supports `.csproj` and `Directory.Build.props` files
+* Partial support for version ranges like `[1.1.0, 2]`: they will be included in `Directory.Packages.props` but without trying to discover the largest version
