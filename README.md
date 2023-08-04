@@ -9,6 +9,7 @@ Download the binary from the [releases](https://github.com/Vannevelj/directory-p
 Mac:
 
 ```sh
+chmod +x ./directory-packages-props-converter
 ./directory-packages-props-converter .
 ```
 

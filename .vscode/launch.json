@@ -9,7 +9,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceRoot}/target/debug/directory-packages-props-converter.exe",
-            "args": ["C:\\source\\sharpsource"],
+            "args": ["C:\\source\\sharpsource", "--log-level", "debug"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

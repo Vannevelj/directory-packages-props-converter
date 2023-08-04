@@ -68,23 +68,28 @@ pub fn parse_package_version(contents: String) -> Vec<PackageVersion> {
     for package_reference_node in package_reference_nodes {
         let version_attribute = package_reference_node.attribute("Version");
         let include_attribute = package_reference_node.attribute("Include");
-        let raw_version = version_attribute.expect("No version found").to_string();
+        debug!(
+            "Evaluating <PackageReference>: {:?}",
+            package_reference_node
+        );
 
-        let version = version_attribute.and_then(|attr| Version::parse(attr).ok());
+        if let Some(raw_version) = version_attribute {
+            let version = version_attribute.and_then(|attr| Version::parse(attr).ok());
 
-        match (version, include_attribute) {
-            (Some(version), Some(name)) => package_versions.push(PackageVersion {
-                name: name.to_string(),
-                version: Some(version),
-                fallback_version: raw_version,
-            }),
-            (None, Some(name)) => package_versions.push(PackageVersion {
-                name: name.to_string(),
-                version: None,
-                fallback_version: raw_version,
-            }),
-            _ => (),
-        };
+            match (version, include_attribute) {
+                (Some(version), Some(name)) => package_versions.push(PackageVersion {
+                    name: name.to_string(),
+                    version: Some(version),
+                    fallback_version: raw_version.to_owned(),
+                }),
+                (None, Some(name)) => package_versions.push(PackageVersion {
+                    name: name.to_string(),
+                    version: None,
+                    fallback_version: raw_version.to_owned(),
+                }),
+                _ => (),
+            };
+        }
     }
 
     package_versions
@@ -105,15 +110,15 @@ pub fn write_directory_packages_props_file(
                     "Replacing {} {} with {}",
                     reference.name,
                     existing.version.to_owned().unwrap(),
-                    reference.version.to_owned().unwrap()
+                    reference.fallback_version.to_owned()
                 );
                 chosen_references.insert(reference.name.to_owned(), reference);
             }
             None => {
                 debug!(
-                    "Adding {} {}",
+                    "Adding {} {:?}",
                     reference.name,
-                    reference.version.to_owned().unwrap()
+                    reference.fallback_version.to_owned()
                 );
                 chosen_references.insert(reference.name.to_owned(), reference);
             }
@@ -125,7 +130,7 @@ pub fn write_directory_packages_props_file(
         debug!(
             "Selected {}: {}",
             chosen_reference.name,
-            chosen_reference.version.to_owned().unwrap()
+            chosen_reference.fallback_version.to_owned()
         );
     }
 

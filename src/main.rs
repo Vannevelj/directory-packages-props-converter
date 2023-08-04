@@ -12,11 +12,11 @@ use structopt::StructOpt;
 use crate::options::Options as CLIopts;
 
 fn main() {
-    env_logger::init_from_env(
-        env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info"),
-    );
-
     let args = CLIopts::from_args();
+
+    env_logger::init_from_env(
+        env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, args.log_level),
+    );
 
     let mut files_of_interest: HashMap<PathBuf, Vec<PackageVersion>> = HashMap::new();
 
