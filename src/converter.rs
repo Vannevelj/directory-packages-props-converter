@@ -39,6 +39,7 @@ pub fn traverse_directories(
         if is_interesting {
             // Gather the versions for each <PackageReference> in the file
             let package_versions = parse_package_versions_from_file(path);
+            debug!("Found {} packages in {:?}", package_versions.len(), path);
             files_of_interest.insert(path.to_owned(), package_versions);
         }
 
