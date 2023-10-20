@@ -6,7 +6,7 @@ fn init() {
 }
 
 mod tests {
-    use directory_packages_props_converter::converter::parse_package_version;
+    use directory_packages_props_converter::converter::{parse_package_version, replace_package_reference_element};
 
     #[test]
     fn parse_package_version_version() {
@@ -60,5 +60,45 @@ mod tests {
 
         let versions = parse_package_version(xml.to_string());
         assert_eq!(2, versions.len());
+    }
+
+    #[test]
+    fn replace_package_reference_element_regular() {
+        let element = r#"<PackageReference Include="My.Reference" Version="1.1.2" />"#;
+
+        let replacement = replace_package_reference_element(element.to_string());
+        assert_eq!(r#"<PackageReference Include="My.Reference" />"#, replacement);
+    }
+
+    #[test]
+    fn replace_package_reference_element_with_range() {
+        let element = r#"<PackageReference Include="My.Reference" Version="[1.10.1, 2)" />"#;
+
+        let replacement = replace_package_reference_element(element.to_string());
+        assert_eq!(r#"<PackageReference Include="My.Reference" />"#, replacement);
+    }
+
+    #[test]
+    fn replace_package_reference_element_with_spacing_before_value() {
+        let element = r#"<PackageReference Include="My.Reference" Version= "[1.10.1, 2)" />"#;
+
+        let replacement = replace_package_reference_element(element.to_string());
+        assert_eq!(r#"<PackageReference Include="My.Reference" />"#, replacement);
+    }
+
+    #[test]
+    fn replace_package_reference_element_with_spacing_after_key() {
+        let element = r#"<PackageReference Include="My.Reference" Version ="[1.10.1, 2)" />"#;
+
+        let replacement = replace_package_reference_element(element.to_string());
+        assert_eq!(r#"<PackageReference Include="My.Reference" />"#, replacement);
+    }
+
+    #[test]
+    fn replace_package_reference_element_with_odd_spacing() {
+        let element = r#"<PackageReference Include="My.Reference" Version =   "[1.10.1, 2)"  />"#;
+
+        let replacement = replace_package_reference_element(element.to_string());
+        assert_eq!(r#"<PackageReference Include="My.Reference"  />"#, replacement);
     }
 }

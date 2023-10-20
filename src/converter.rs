@@ -225,14 +225,17 @@ fn strip_path(path: &Path) -> String {
 }
 
 pub fn strip_version_attributes(files_of_interest: &HashMap<PathBuf, Vec<PackageVersion>>) {
-    let re = Regex::new("(?<rest><PackageReference.*)(?<version> Version=\".*?\")").unwrap();
-
     for (file, _) in files_of_interest {
         let contents = fs::read_to_string(file).expect("Failed to read file");
-        let result = re.replace_all(&contents, "$rest").to_string();
-
+        let result = replace_package_reference_element(contents);
         let mut file = File::create(file).expect("Failed to open file for writing");
         file.write_all(result.as_bytes())
             .expect("Failed to write <PackageReference> updates");
     }
+}
+
+pub fn replace_package_reference_element(contents: String) -> String {
+    let regex = Regex::new("(?<rest><PackageReference.*)(?<version> Version\\s*=\\s*\".*?\")").unwrap();
+
+    regex.replace_all(&contents, "$rest").to_string()
 }
