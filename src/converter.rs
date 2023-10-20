@@ -96,6 +96,13 @@ pub fn parse_package_version(contents: String) -> Vec<PackageVersion> {
     package_versions
 }
 
+fn get_version(package: &PackageVersion) -> String {
+    match &package.version {
+        Some(v) => v.to_owned().to_string(),
+        _ => package.fallback_version.to_owned()
+    }
+}
+
 pub fn write_directory_packages_props_file(
     files_of_interest: &HashMap<PathBuf, Vec<PackageVersion>>,
     root: &Path,
@@ -105,13 +112,17 @@ pub fn write_directory_packages_props_file(
 
     for reference in all_references {
         let existing_reference = chosen_references.get(&reference.name);
+        
         match existing_reference {
             Some(existing) if reference.version > existing.version => {
+                let old = get_version(&existing);
+                let new = get_version(&existing);
+
                 debug!(
                     "Replacing {} {} with {}",
                     reference.name,
-                    existing.version.to_owned().unwrap(),
-                    reference.fallback_version.to_owned()
+                    old,
+                    new
                 );
                 chosen_references.insert(reference.name.to_owned(), reference);
             }
@@ -126,6 +137,8 @@ pub fn write_directory_packages_props_file(
             _ => (),
         }
     }
+
+    debug!("Finished adding references");
 
     for (_, chosen_reference) in &chosen_references {
         debug!(
@@ -142,14 +155,17 @@ pub fn write_directory_packages_props_file(
                 .get(&dependency.name)
                 .expect("Failed to find selected dependency version");
 
+            let old = get_version(&dependency);
+            let new = get_version(&selected_dependency);
+
             // https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
             if dependency.version != selected_dependency.version {
                 info!(
                     "{}: Upgrading {} from \x1b[93m{}\x1b[0m to \x1b[92m{}\x1b[0m",
                     strip_path(&filename),
                     dependency.name,
-                    dependency.version.to_owned().unwrap(),
-                    selected_dependency.version.to_owned().unwrap()
+                    old,
+                    new
                 )
             }
         }

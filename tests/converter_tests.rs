@@ -47,4 +47,18 @@ mod tests {
         let versions = parse_package_version(xml.to_string());
         assert_eq!(2, versions.len());
     }
+
+    #[test]
+    fn parse_package_version_version_mixed_with_halfopen_range() {
+        let xml = r#"
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <PackageReference Include="My.Reference" Version="[1.10.1, 2)" />
+        <PackageReference Include="My.Other.Reference" Version="2.0.0" />
+    </ItemGroup>
+</Project>"#;
+
+        let versions = parse_package_version(xml.to_string());
+        assert_eq!(2, versions.len());
+    }
 }
