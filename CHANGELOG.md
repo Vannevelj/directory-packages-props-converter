@@ -1,6 +1,9 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2024-03-15
+* Added Linux versions of the released binaries.
+
 ## [0.3.0] - 2023-10-20
 * Updating the `<PackageReference>` is more tolerant towards additional whitespace
 
