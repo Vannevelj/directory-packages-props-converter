@@ -124,7 +124,7 @@ dependencies = [
 
 [[package]]
 name = "directory-packages-props-converter"
-version = "0.1.0"
+version = "0.3.2"
 dependencies = [
  "ctor",
  "env_logger",
