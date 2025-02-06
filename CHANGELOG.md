@@ -1,6 +1,9 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.3.2] - 2025-02-06
+* Remove blank lines in the output
+
 ## [0.3.1] - 2024-03-15
 * Added Linux versions of the released binaries.
 

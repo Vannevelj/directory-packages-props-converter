@@ -33,13 +33,11 @@ Once you've ran the script, you'll see a new `Directory.Packages.props` like thi
   </PropertyGroup>
 
   <ItemGroup>
-
     <PackageVersion Include="MSTest.TestAdapter" Version="3.0.2" />
     <PackageVersion Include="MSTest.TestFramework" Version="3.0.2" />
     <PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc" Version="2.2.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis" Version="4.4.0" />
-  
   </ItemGroup>
 </Project>
 ```

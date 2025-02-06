@@ -186,8 +186,9 @@ pub fn write_directory_packages_props_file(
   </PropertyGroup>
 
   <ItemGroup>
-
 "#
+    // Remove leading blank lines and spaces.
+    .trim_start()
     .to_owned();
 
     let mut sorted_references: Vec<&PackageVersion> =
@@ -209,8 +210,7 @@ pub fn write_directory_packages_props_file(
     }
 
     contents.push_str(
-        r#"  
-  </ItemGroup>
+        r#"  </ItemGroup>
 </Project>"#,
     );
 
