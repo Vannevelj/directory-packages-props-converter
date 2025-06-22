@@ -193,7 +193,7 @@ pub fn write_directory_packages_props_file(
 
     let mut sorted_references: Vec<&PackageVersion> =
         chosen_references.into_values().into_iter().collect();
-    sorted_references.sort_unstable_by_key(|dep| &dep.name);
+    sorted_references.sort_unstable_by_key(|dep| dep.name.to_lowercase());
     for package in sorted_references {
         let version_to_write = match &package.version {
             Some(v) => v.to_string(),

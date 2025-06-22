@@ -1,6 +1,9 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.3.3] - 2025-06-22
+* Order dependencies case-insensitively
+
 ## [0.3.2] - 2025-02-06
 * Remove blank lines in the output
 
