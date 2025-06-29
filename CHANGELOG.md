@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.3.4] - 2025-06-29
+* Updated cargo.toml dependencies
+* Consolidate dependencies case-insensitively
+
 ## [0.3.3] - 2025-06-22
 * Order dependencies case-insensitively
 
