@@ -189,7 +189,7 @@ checksum = "4f211af61d8efdd104f96e57adf5e426ba1bc3ed7a4ead616e15e5881fd79c4d"
 
 [[package]]
 name = "directory-packages-props-converter"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "case_insensitive_hashmap",
  "ctor",
