@@ -1,3 +1,4 @@
+use case_insensitive_hashmap::CaseInsensitiveHashMap;
 use log::{debug, info};
 use regex::Regex;
 use roxmltree::Document;
@@ -9,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Hash, Eq, PartialEq, Debug)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct PackageVersion {
     name: String,
     version: Option<Version>,
@@ -108,10 +109,10 @@ pub fn write_directory_packages_props_file(
     root: &Path,
 ) {
     let all_references = files_of_interest.values().flatten();
-    let mut chosen_references: HashMap<String, &PackageVersion> = HashMap::new();
+    let mut chosen_references: CaseInsensitiveHashMap<PackageVersion> = CaseInsensitiveHashMap::new();
 
     for reference in all_references {
-        let existing_reference = chosen_references.get(&reference.name);
+        let existing_reference = chosen_references.get(reference.name.to_owned());
         
         match existing_reference {
             Some(existing) if reference.version > existing.version => {
@@ -124,7 +125,7 @@ pub fn write_directory_packages_props_file(
                     old,
                     new
                 );
-                chosen_references.insert(reference.name.to_owned(), reference);
+                chosen_references.insert(reference.name.to_owned(), reference.clone());
             }
             None => {
                 debug!(
@@ -132,7 +133,7 @@ pub fn write_directory_packages_props_file(
                     reference.name,
                     reference.fallback_version.to_owned()
                 );
-                chosen_references.insert(reference.name.to_owned(), reference);
+                chosen_references.insert(reference.name.to_owned(), reference.clone());
             }
             _ => (),
         }
@@ -152,7 +153,7 @@ pub fn write_directory_packages_props_file(
     for (filename, dependencies) in files_of_interest {
         for dependency in dependencies {
             let selected_dependency = chosen_references
-                .get(&dependency.name)
+                .get(dependency.name.to_string())
                 .expect("Failed to find selected dependency version");
 
             let old = get_version(&dependency);
@@ -192,7 +193,7 @@ pub fn write_directory_packages_props_file(
     .to_owned();
 
     let mut sorted_references: Vec<&PackageVersion> =
-        chosen_references.into_values().into_iter().collect();
+        chosen_references.values().into_iter().collect();
     sorted_references.sort_unstable_by_key(|dep| dep.name.to_lowercase());
     for package in sorted_references {
         let version_to_write = match &package.version {
