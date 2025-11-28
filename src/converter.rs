@@ -9,7 +9,7 @@ use std::{
     fs::{self, File},
     path::{Path, PathBuf},
 };
-use crate::fs::{Fs, RealFs};
+use crate::fs::Fs;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct PackageVersion {
@@ -26,13 +26,6 @@ pub fn parse_path(path: &PathBuf) -> String {
 }
 
 pub fn traverse_directories(
-    path: &PathBuf,
-    files_of_interest: &mut HashMap<PathBuf, Vec<PackageVersion>>,
-) {
-    traverse_directories_with_fs(&RealFs, path, files_of_interest);
-}
-
-pub fn traverse_directories_with_fs(
     fs_impl: &impl Fs,
     path: &PathBuf,
     files_of_interest: &mut HashMap<PathBuf, Vec<PackageVersion>>,
@@ -61,11 +54,9 @@ pub fn traverse_directories_with_fs(
     debug!("Diving into new directory: {:?}", path);
 
     for entry_path in fs_impl.read_dir(path) {
-        traverse_directories_with_fs(fs_impl, &entry_path, files_of_interest);
+        traverse_directories(fs_impl, &entry_path, files_of_interest);
     }
 }
-
-// replaced by usage of Fs::read_to_string in traverse
 
 pub fn parse_package_version(contents: String) -> Vec<PackageVersion> {
     let xml_document = Document::parse(&contents).expect("Failed to parse XML");

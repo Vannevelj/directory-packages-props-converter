@@ -8,7 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use structopt::StructOpt;
-
+use directory_packages_props_converter::fs::RealFs;
 use crate::options::Options as CLIopts;
 
 fn main() {
@@ -20,7 +20,7 @@ fn main() {
 
     let mut files_of_interest: HashMap<PathBuf, Vec<PackageVersion>> = HashMap::new();
 
-    traverse_directories(&expand_path(&args.path), &mut files_of_interest);
+    traverse_directories(&RealFs, &expand_path(&args.path), &mut files_of_interest);
     write_directory_packages_props_file(&files_of_interest, &args.path);
     strip_version_attributes(&files_of_interest);
 }

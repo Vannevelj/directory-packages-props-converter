@@ -14,7 +14,7 @@ mod tests {
         collections::HashSet
     };
     use directory_packages_props_converter::converter::{
-        traverse_directories_with_fs, PackageVersion,
+        traverse_directories, PackageVersion,
     };
     use directory_packages_props_converter::fs::Fs;
 
@@ -57,7 +57,7 @@ mod tests {
 
     fn run_traverse(fs: &impl Fs, root: &PathBuf) -> HashMap<PathBuf, Vec<PackageVersion>> {
         let mut files_of_interest: HashMap<PathBuf, Vec<PackageVersion>> = HashMap::new();
-        traverse_directories_with_fs(fs, root, &mut files_of_interest);
+        traverse_directories(fs, root, &mut files_of_interest);
         files_of_interest
     }
 
