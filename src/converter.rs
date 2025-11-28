@@ -9,37 +9,13 @@ use std::{
     fs::{self, File},
     path::{Path, PathBuf},
 };
+use crate::fs::{Fs, RealFs};
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct PackageVersion {
     pub name: String,
     pub version: Option<Version>,
     pub fallback_version: String,
-}
-
-// Abstraction over filesystem to enable testing traversal without real IO
-pub trait Fs {
-    fn metadata_is_file(&self, path: &Path) -> bool;
-    fn read_dir(&self, path: &Path) -> Vec<PathBuf>;
-    fn read_to_string(&self, path: &Path) -> std::io::Result<String>;
-}
-
-pub struct RealFs;
-
-impl Fs for RealFs {
-    fn metadata_is_file(&self, path: &Path) -> bool {
-        fs::metadata(path).map(|m| m.is_file()).unwrap_or(false)
-    }
-
-    fn read_dir(&self, path: &Path) -> Vec<PathBuf> {
-        fs::read_dir(path)
-            .map(|rd| rd.flatten().map(|e| e.path()).collect())
-            .unwrap_or_default()
-    }
-
-    fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-        fs::read_to_string(path)
-    }
 }
 
 pub fn parse_path(path: &PathBuf) -> String {

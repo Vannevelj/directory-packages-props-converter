@@ -11,8 +11,9 @@ mod tests {
     use std::{collections::HashMap, path::PathBuf};
 
     use directory_packages_props_converter::converter::{
-        traverse_directories_with_fs, Fs, PackageVersion,
+        traverse_directories_with_fs, PackageVersion,
     };
+    use directory_packages_props_converter::fs::Fs;
 
     #[derive(Default)]
     struct MockFs {
