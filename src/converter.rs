@@ -17,6 +17,31 @@ pub struct PackageVersion {
     pub fallback_version: String,
 }
 
+// Abstraction over filesystem to enable testing traversal without real IO
+pub trait Fs {
+    fn metadata_is_file(&self, path: &Path) -> bool;
+    fn read_dir(&self, path: &Path) -> Vec<PathBuf>;
+    fn read_to_string(&self, path: &Path) -> std::io::Result<String>;
+}
+
+pub struct RealFs;
+
+impl Fs for RealFs {
+    fn metadata_is_file(&self, path: &Path) -> bool {
+        fs::metadata(path).map(|m| m.is_file()).unwrap_or(false)
+    }
+
+    fn read_dir(&self, path: &Path) -> Vec<PathBuf> {
+        fs::read_dir(path)
+            .map(|rd| rd.flatten().map(|e| e.path()).collect())
+            .unwrap_or_default()
+    }
+
+    fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
+        fs::read_to_string(path)
+    }
+}
+
 pub fn parse_path(path: &PathBuf) -> String {
     path.to_owned()
         .into_os_string()
@@ -28,8 +53,15 @@ pub fn traverse_directories(
     path: &PathBuf,
     files_of_interest: &mut HashMap<PathBuf, Vec<PackageVersion>>,
 ) {
-    let metadata = fs::metadata(path).expect("Failed to retrieve file metadata");
-    if metadata.is_file() {
+    traverse_directories_with_fs(&RealFs, path, files_of_interest);
+}
+
+pub fn traverse_directories_with_fs(
+    fs_impl: &impl Fs,
+    path: &PathBuf,
+    files_of_interest: &mut HashMap<PathBuf, Vec<PackageVersion>>,
+) {
+    if fs_impl.metadata_is_file(path) {
         let is_interesting = path
             .extension()
             .is_some_and(|ext| ext.to_os_string() == "csproj")
@@ -39,7 +71,10 @@ pub fn traverse_directories(
 
         if is_interesting {
             // Gather the versions for each <PackageReference> in the file
-            let package_versions = parse_package_versions_from_file(path);
+            let contents = fs_impl
+                .read_to_string(path)
+                .expect("Failed to read file");
+            let package_versions = parse_package_version(contents);
             debug!("Found {} packages in {:?}", package_versions.len(), path);
             files_of_interest.insert(path.to_owned(), package_versions);
         }
@@ -49,15 +84,12 @@ pub fn traverse_directories(
 
     debug!("Diving into new directory: {:?}", path);
 
-    for entry in fs::read_dir(path).unwrap().flatten() {
-        traverse_directories(&entry.path(), files_of_interest);
+    for entry_path in fs_impl.read_dir(path) {
+        traverse_directories_with_fs(fs_impl, &entry_path, files_of_interest);
     }
 }
 
-fn parse_package_versions_from_file(path: &PathBuf) -> Vec<PackageVersion> {
-    let contents = fs::read_to_string(path).expect("Failed to read file");
-    parse_package_version(contents)
-}
+// replaced by usage of Fs::read_to_string in traverse
 
 pub fn parse_package_version(contents: String) -> Vec<PackageVersion> {
     let xml_document = Document::parse(&contents).expect("Failed to parse XML");
