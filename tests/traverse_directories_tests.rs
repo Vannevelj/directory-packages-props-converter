@@ -21,16 +21,53 @@ mod tests {
     }
 
     impl MockFs {
-        fn with_dir(mut self, dir: &str, children: Vec<&str>) -> Self {
-            let dir_pb = PathBuf::from(dir);
-            let child_pbs: Vec<PathBuf> = children.into_iter().map(PathBuf::from).collect();
-            self.dirs.insert(dir_pb, child_pbs);
-            self
+        // Ensure a directory exists in the map
+        fn ensure_dir(&mut self, dir: &PathBuf) {
+            self.dirs.entry(dir.clone()).or_insert_with(Vec::new);
         }
 
-        fn with_file(mut self, path: &str, content: Option<String>) -> Self {
+        // Add a child path to a parent's children list if not present
+        fn add_child_unique(&mut self, parent: &PathBuf, child: &PathBuf) {
+            let entry = self.dirs.entry(parent.clone()).or_insert_with(Vec::new);
+            if !entry.iter().any(|c| c == child) {
+                entry.push(child.clone());
+            }
+        }
+
+        // Create directory hierarchy for a given path (file or directory) and register parent->child links
+        fn add_path_hierarchy(&mut self, full_path: &PathBuf, is_file: bool) {
+            // Build components progressively: root, root/A, root/A/B, ...
+            let mut parts = full_path.components();
+            if let Some(first) = parts.next() {
+                let mut cur = PathBuf::from(first.as_os_str());
+                // The first component should be a directory key as traversal starts at root
+                self.ensure_dir(&cur);
+
+                for comp in parts {
+                    let next = cur.join(comp.as_os_str());
+                    // If this is the last component and represents a file, don't ensure it as a dir
+                    let last = &next == full_path;
+                    if last && is_file {
+                        // Register file under its parent
+                        self.add_child_unique(&cur, &next);
+                    } else {
+                        // A directory along the way
+                        self.ensure_dir(&next);
+                        self.add_child_unique(&cur, &next);
+                        cur = next;
+                    }
+                }
+            }
+        }
+
+        // Public helper used by tests: provide a file path like "dir/sub/file.ext" and optional content
+        // It will create the necessary directory entries and add the file content
+        fn with_tree_file(mut self, path: &str, content: Option<String>) -> Self {
+            let pb = PathBuf::from(path);
+            // default minimal project XML when not specified
             let content = content.unwrap_or_else(|| r##"<Project Sdk="Microsoft.NET.Sdk"></Project>"##.to_string());
-            self.files_with_contents.insert(PathBuf::from(path), content);
+            self.add_path_hierarchy(&pb, true);
+            self.files_with_contents.insert(pb, content);
             self
         }
     }
@@ -77,14 +114,10 @@ mod tests {
         let other = PathBuf::from("root/not_interesting.xml");
 
         let mock = MockFs::default()
-            .with_dir("root", vec!["root/A", "root/B", "root/not_interesting.xml"]) // files may appear in read_dir listing
-            .with_dir("root/A", vec!["root/A/project.csproj", "root/A/ignore.txt"])
-            .with_dir("root/B", vec!["root/B/nested"]) // nested dir
-            .with_dir("root/B/nested", vec!["root/B/nested/Directory.Build.props"]) // file
-            .with_file(csproj.to_str().unwrap(), None)
-            .with_file(ignore.to_str().unwrap(), None)
-            .with_file(props.to_str().unwrap(), None)
-            .with_file(other.to_str().unwrap(), None);
+            .with_tree_file(csproj.to_str().unwrap(), None)
+            .with_tree_file(ignore.to_str().unwrap(), None)
+            .with_tree_file(props.to_str().unwrap(), None)
+            .with_tree_file(other.to_str().unwrap(), None);
 
         let files_of_interest = run_traverse(&mock, &root);
 
@@ -104,11 +137,9 @@ mod tests {
         let csproj = PathBuf::from("root2/A/app.csproj");
 
         let mock = MockFs::default()
-            .with_dir("root2", vec!["root2/A", ignore1.to_str().unwrap()])
-            .with_dir("root2/A", vec![csproj.to_str().unwrap(), ignore2.to_str().unwrap()])
-            .with_file(ignore1.to_str().unwrap(), None)
-            .with_file(ignore2.to_str().unwrap(), None)
-            .with_file(csproj.to_str().unwrap(), None);
+            .with_tree_file(ignore1.to_str().unwrap(), None)
+            .with_tree_file(ignore2.to_str().unwrap(), None)
+            .with_tree_file(csproj.to_str().unwrap(), None);
 
         let files_of_interest = run_traverse(&mock, &root);
         assert_eq!(1, files_of_interest.len());
@@ -125,10 +156,8 @@ mod tests {
         let props_nested = PathBuf::from("root3/sub/Directory.Build.props");
 
         let mock = MockFs::default()
-            .with_dir("root3", vec![csproj_root.to_str().unwrap(), "root3/sub"]) // file + dir
-            .with_dir("root3/sub", vec![props_nested.to_str().unwrap()])
-            .with_file(csproj_root.to_str().unwrap(), None)
-            .with_file(props_nested.to_str().unwrap(), None);
+            .with_tree_file(csproj_root.to_str().unwrap(), None)
+            .with_tree_file(props_nested.to_str().unwrap(), None);
 
         let files_of_interest = run_traverse(&mock, &root);
         assert_eq!(2, files_of_interest.len());
@@ -147,18 +176,10 @@ mod tests {
         let obj_props = PathBuf::from("root_git/A/obj/Directory.Build.props");
 
         let mock = MockFs::default()
-            .with_dir("root_git", vec!["root_git/.gitignore", "root_git/A"]) // include .gitignore file
-            .with_dir("root_git/A", vec![
-                app.to_str().unwrap(),
-                "root_git/A/bin",
-                "root_git/A/obj",
-            ])
-            .with_dir("root_git/A/bin", vec![bin_csproj.to_str().unwrap()])
-            .with_dir("root_git/A/obj", vec![obj_props.to_str().unwrap()])
-            .with_file("root_git/.gitignore", Some(gitignore.to_string()))
-            .with_file(app.to_str().unwrap(), None)
-            .with_file(bin_csproj.to_str().unwrap(), None)
-            .with_file(obj_props.to_str().unwrap(), None);
+            .with_tree_file("root_git/.gitignore", Some(gitignore.to_string()))
+            .with_tree_file(app.to_str().unwrap(), None)
+            .with_tree_file(bin_csproj.to_str().unwrap(), None)
+            .with_tree_file(obj_props.to_str().unwrap(), None);
 
         let files_of_interest = run_traverse(&mock, &root);
         assert!(files_of_interest.contains_key(&app));
@@ -177,12 +198,9 @@ mod tests {
         let skip = PathBuf::from("root_git2/A/skip.csproj");
 
         let mock = MockFs::default()
-            .with_dir("root_git2", vec!["root_git2/.gitignore", "root_git2/A", "root_git2/B"]) // include .gitignore
-            .with_dir("root_git2/A", vec![skip.to_str().unwrap()])
-            .with_dir("root_git2/B", vec![keep.to_str().unwrap()])
-            .with_file("root_git2/.gitignore", Some(gitignore.to_string()))
-            .with_file(skip.to_str().unwrap(), None)
-            .with_file(keep.to_str().unwrap(), None);
+            .with_tree_file("root_git2/.gitignore", Some(gitignore.to_string()))
+            .with_tree_file(skip.to_str().unwrap(), None)
+            .with_tree_file(keep.to_str().unwrap(), None);
 
         let files_of_interest = run_traverse(&mock, &root);
         assert!(!files_of_interest.contains_key(&skip));
