@@ -1,6 +1,9 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2025-11-28
+* Files and directories included in the root .gitignore file are now ignored
+
 ## [0.3.4] - 2025-06-29
 * Updated cargo.toml dependencies
 * Consolidate dependencies case-insensitively
