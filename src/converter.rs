@@ -10,6 +10,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use crate::fs::Fs;
+use globset::{Glob, GlobSet, GlobSetBuilder};
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct PackageVersion {
@@ -30,6 +31,73 @@ pub fn traverse_directories(
     path: &PathBuf,
     files_of_interest: &mut HashMap<PathBuf, Vec<PackageVersion>>,
 ) {
+    // Build ignore set once from root .gitignore and traverse with it
+    let ignore_set = build_ignore_set(fs_impl, path);
+    traverse_with_ignores(fs_impl, path, path, files_of_interest, ignore_set.as_ref());
+}
+
+fn build_ignore_set(fs_impl: &impl Fs, root: &Path) -> Option<GlobSet> {
+    let gitignore = root.join(".gitignore");
+    if !fs_impl.metadata_is_file(&gitignore) {
+        return None;
+    }
+
+    let Ok(contents) = fs_impl.read_to_string(&gitignore) else { return None; };
+
+    let mut builder = GlobSetBuilder::new();
+    let mut has_any = false;
+
+    for raw_line in contents.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') { continue; }
+        if line.starts_with('!') { continue; } // ignore negations for now
+
+        // Normalize: if it ends with '/', target directory and all descendants
+        // If it starts with '/', anchor to root; otherwise match anywhere under root
+        let pattern = if line.ends_with('/') {
+            if line.starts_with('/') {
+                // Remove leading '/' and trailing '/' and anchor under root
+                format!("{}/**", line.trim_start_matches('/').trim_end_matches('/'))
+            } else {
+                format!("**/{}/**", line.trim_end_matches('/'))
+            }
+        } else {
+            if line.starts_with('/') {
+                line.trim_start_matches('/').to_string()
+            } else {
+                format!("**/{}", line)
+            }
+        };
+
+        // Build a Glob relative to root; globset matches on Path, so we'll pass relative paths
+        if let Ok(glob) = Glob::new(&pattern) {
+            builder.add(glob);
+            has_any = true;
+        }
+    }
+
+    if !has_any { return None; }
+    builder.build().ok()
+}
+
+fn is_ignored(root: &Path, current: &Path, ignore: Option<&GlobSet>) -> bool {
+    let Some(set) = ignore else { return false; };
+    let rel = current.strip_prefix(root).unwrap_or(current);
+    set.is_match(rel)
+}
+
+fn traverse_with_ignores(
+    fs_impl: &impl Fs,
+    root: &Path,
+    path: &Path,
+    files_of_interest: &mut HashMap<PathBuf, Vec<PackageVersion>>,
+    ignore: Option<&GlobSet>,
+) {
+    if is_ignored(root, path, ignore) {
+        debug!("Ignoring path due to .gitignore: {:?}", path);
+        return;
+    }
+
     if fs_impl.metadata_is_file(path) {
         let is_interesting = path
             .extension()
@@ -54,7 +122,7 @@ pub fn traverse_directories(
     debug!("Diving into new directory: {:?}", path);
 
     for entry_path in fs_impl.read_dir(path) {
-        traverse_directories(fs_impl, &entry_path, files_of_interest);
+        traverse_with_ignores(fs_impl, root, &entry_path, files_of_interest, ignore);
     }
 }
 

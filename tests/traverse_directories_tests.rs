@@ -8,19 +8,15 @@ fn init() {
 }
 
 mod tests {
-    use std::{
-        collections::HashMap,
-        path::PathBuf,
-        collections::HashSet
-    };
-    use directory_packages_props_converter::converter::{
-        traverse_directories, PackageVersion,
-    };
+    use std::collections::{HashMap};
+    use std::path::PathBuf;
+
+    use directory_packages_props_converter::converter::{traverse_directories, PackageVersion};
     use directory_packages_props_converter::fs::Fs;
 
     #[derive(Default)]
     struct MockFs {
-        files: HashSet<PathBuf>,
+        files_with_contents: HashMap<PathBuf, String>,
         dirs: HashMap<PathBuf, Vec<PathBuf>>, // directory -> children (files or dirs)
     }
 
@@ -32,15 +28,16 @@ mod tests {
             self
         }
 
-        fn with_file(mut self, path: &str) -> Self {
-            self.files.insert(PathBuf::from(path));
+        fn with_file(mut self, path: &str, content: Option<String>) -> Self {
+            let content = content.unwrap_or_else(|| r##"<Project Sdk="Microsoft.NET.Sdk"></Project>"##.to_string());
+            self.files_with_contents.insert(PathBuf::from(path), content);
             self
         }
     }
 
     impl Fs for MockFs {
         fn metadata_is_file(&self, path: &std::path::Path) -> bool {
-            self.files.contains(&PathBuf::from(path))
+            self.files_with_contents.contains_key(&PathBuf::from(path))
         }
 
         fn read_dir(&self, path: &std::path::Path) -> Vec<PathBuf> {
@@ -50,8 +47,8 @@ mod tests {
                 .unwrap_or_default()
         }
 
-        fn read_to_string(&self, _path: &std::path::Path) -> std::io::Result<String> {
-            Ok(String::from(r##"<Project Sdk="Microsoft.NET.Sdk"></Project>"##))
+        fn read_to_string(&self, path: &std::path::Path) -> std::io::Result<String> {
+            Ok(self.files_with_contents.get(&PathBuf::from(path)).unwrap().to_string())
         }
     }
 
@@ -84,10 +81,10 @@ mod tests {
             .with_dir("root/A", vec!["root/A/project.csproj", "root/A/ignore.txt"])
             .with_dir("root/B", vec!["root/B/nested"]) // nested dir
             .with_dir("root/B/nested", vec!["root/B/nested/Directory.Build.props"]) // file
-            .with_file(csproj.to_str().unwrap())
-            .with_file(ignore.to_str().unwrap())
-            .with_file(props.to_str().unwrap())
-            .with_file(other.to_str().unwrap());
+            .with_file(csproj.to_str().unwrap(), None)
+            .with_file(ignore.to_str().unwrap(), None)
+            .with_file(props.to_str().unwrap(), None)
+            .with_file(other.to_str().unwrap(), None);
 
         let files_of_interest = run_traverse(&mock, &root);
 
@@ -109,9 +106,9 @@ mod tests {
         let mock = MockFs::default()
             .with_dir("root2", vec!["root2/A", ignore1.to_str().unwrap()])
             .with_dir("root2/A", vec![csproj.to_str().unwrap(), ignore2.to_str().unwrap()])
-            .with_file(ignore1.to_str().unwrap())
-            .with_file(ignore2.to_str().unwrap())
-            .with_file(csproj.to_str().unwrap());
+            .with_file(ignore1.to_str().unwrap(), None)
+            .with_file(ignore2.to_str().unwrap(), None)
+            .with_file(csproj.to_str().unwrap(), None);
 
         let files_of_interest = run_traverse(&mock, &root);
         assert_eq!(1, files_of_interest.len());
@@ -130,12 +127,66 @@ mod tests {
         let mock = MockFs::default()
             .with_dir("root3", vec![csproj_root.to_str().unwrap(), "root3/sub"]) // file + dir
             .with_dir("root3/sub", vec![props_nested.to_str().unwrap()])
-            .with_file(csproj_root.to_str().unwrap())
-            .with_file(props_nested.to_str().unwrap());
+            .with_file(csproj_root.to_str().unwrap(), None)
+            .with_file(props_nested.to_str().unwrap(), None);
 
         let files_of_interest = run_traverse(&mock, &root);
         assert_eq!(2, files_of_interest.len());
         assert!(files_of_interest.contains_key(&csproj_root));
         assert!(files_of_interest.contains_key(&props_nested));
+    }
+
+    #[test]
+    fn traverse_respects_gitignore_bin_obj() {
+        // .gitignore excludes bin/ and obj/ directories
+        let root = PathBuf::from("root_git");
+        let gitignore = "bin/\nobj/\n";
+
+        let app = PathBuf::from("root_git/A/app.csproj");
+        let bin_csproj = PathBuf::from("root_git/A/bin/skip.csproj");
+        let obj_props = PathBuf::from("root_git/A/obj/Directory.Build.props");
+
+        let mock = MockFs::default()
+            .with_dir("root_git", vec!["root_git/.gitignore", "root_git/A"]) // include .gitignore file
+            .with_dir("root_git/A", vec![
+                app.to_str().unwrap(),
+                "root_git/A/bin",
+                "root_git/A/obj",
+            ])
+            .with_dir("root_git/A/bin", vec![bin_csproj.to_str().unwrap()])
+            .with_dir("root_git/A/obj", vec![obj_props.to_str().unwrap()])
+            .with_file("root_git/.gitignore", Some(gitignore.to_string()))
+            .with_file(app.to_str().unwrap(), None)
+            .with_file(bin_csproj.to_str().unwrap(), None)
+            .with_file(obj_props.to_str().unwrap(), None);
+
+        let files_of_interest = run_traverse(&mock, &root);
+        assert!(files_of_interest.contains_key(&app));
+        assert!(!files_of_interest.contains_key(&bin_csproj));
+        assert!(!files_of_interest.contains_key(&obj_props));
+        assert_eq!(1, files_of_interest.len());
+    }
+
+    #[test]
+    fn traverse_gitignore_root_anchored_file() {
+        // .gitignore excludes a specific file at the root path using an anchored pattern
+        let root = PathBuf::from("root_git2");
+        let gitignore = "/A/skip.csproj\n";
+
+        let keep = PathBuf::from("root_git2/B/skip.csproj");
+        let skip = PathBuf::from("root_git2/A/skip.csproj");
+
+        let mock = MockFs::default()
+            .with_dir("root_git2", vec!["root_git2/.gitignore", "root_git2/A", "root_git2/B"]) // include .gitignore
+            .with_dir("root_git2/A", vec![skip.to_str().unwrap()])
+            .with_dir("root_git2/B", vec![keep.to_str().unwrap()])
+            .with_file("root_git2/.gitignore", Some(gitignore.to_string()))
+            .with_file(skip.to_str().unwrap(), None)
+            .with_file(keep.to_str().unwrap(), None);
+
+        let files_of_interest = run_traverse(&mock, &root);
+        assert!(!files_of_interest.contains_key(&skip));
+        assert!(files_of_interest.contains_key(&keep));
+        assert_eq!(1, files_of_interest.len());
     }
 }
