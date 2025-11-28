@@ -12,9 +12,9 @@ use std::{
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct PackageVersion {
-    name: String,
-    version: Option<Version>,
-    fallback_version: String,
+    pub name: String,
+    pub version: Option<Version>,
+    pub fallback_version: String,
 }
 
 pub fn parse_path(path: &PathBuf) -> String {
