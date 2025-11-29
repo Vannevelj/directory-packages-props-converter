@@ -1,4 +1,6 @@
+use crate::fs::Fs;
 use case_insensitive_hashmap::CaseInsensitiveHashMap;
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use log::{debug, info};
 use regex::Regex;
 use roxmltree::Document;
@@ -9,8 +11,6 @@ use std::{
     fs::{self, File},
     path::{Path, PathBuf},
 };
-use crate::fs::Fs;
-use globset::{Glob, GlobSet, GlobSetBuilder};
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct PackageVersion {
@@ -42,15 +42,21 @@ pub fn build_ignore_set(fs_impl: &impl Fs, root: &Path) -> Option<GlobSet> {
         return None;
     }
 
-    let Ok(contents) = fs_impl.read_to_string(&gitignore) else { return None; };
+    let Ok(contents) = fs_impl.read_to_string(&gitignore) else {
+        return None;
+    };
 
     let mut builder = GlobSetBuilder::new();
     let mut has_any = false;
 
     for raw_line in contents.lines() {
         let line = raw_line.trim();
-        if line.is_empty() || line.starts_with('#') { continue; }
-        if line.starts_with('!') { continue; } // ignore negations for now
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if line.starts_with('!') {
+            continue;
+        } // ignore negations for now
 
         // Normalize: if it ends with '/', target directory and all descendants
         // If it starts with '/', anchor to root; otherwise match anywhere under root
@@ -76,12 +82,16 @@ pub fn build_ignore_set(fs_impl: &impl Fs, root: &Path) -> Option<GlobSet> {
         }
     }
 
-    if !has_any { return None; }
+    if !has_any {
+        return None;
+    }
     builder.build().ok()
 }
 
 fn is_ignored(root: &Path, current: &Path, ignore: Option<&GlobSet>) -> bool {
-    let Some(set) = ignore else { return false; };
+    let Some(set) = ignore else {
+        return false;
+    };
     let rel = current.strip_prefix(root).unwrap_or(current);
     set.is_match(rel)
 }
@@ -108,9 +118,7 @@ fn traverse_with_ignores(
 
         if is_interesting {
             // Gather the versions for each <PackageReference> in the file
-            let contents = fs_impl
-                .read_to_string(path)
-                .expect("Failed to read file");
+            let contents = fs_impl.read_to_string(path).expect("Failed to read file");
             let package_versions = parse_package_version(contents);
             debug!("Found {} packages in {:?}", package_versions.len(), path);
             files_of_interest.insert(path.to_owned(), package_versions);
@@ -167,7 +175,7 @@ pub fn parse_package_version(contents: String) -> Vec<PackageVersion> {
 fn get_version(package: &PackageVersion) -> String {
     match &package.version {
         Some(v) => v.to_owned().to_string(),
-        _ => package.fallback_version.to_owned()
+        _ => package.fallback_version.to_owned(),
     }
 }
 
@@ -176,22 +184,18 @@ pub fn write_directory_packages_props_file(
     root: &Path,
 ) {
     let all_references = files_of_interest.values().flatten();
-    let mut chosen_references: CaseInsensitiveHashMap<PackageVersion> = CaseInsensitiveHashMap::new();
+    let mut chosen_references: CaseInsensitiveHashMap<PackageVersion> =
+        CaseInsensitiveHashMap::new();
 
     for reference in all_references {
         let existing_reference = chosen_references.get(reference.name.to_owned());
-        
+
         match existing_reference {
             Some(existing) if reference.version > existing.version => {
                 let old = get_version(&existing);
                 let new = get_version(&existing);
 
-                debug!(
-                    "Replacing {} {} with {}",
-                    reference.name,
-                    old,
-                    new
-                );
+                debug!("Replacing {} {} with {}", reference.name, old, new);
                 chosen_references.insert(reference.name.to_owned(), reference.clone());
             }
             None => {
@@ -303,7 +307,8 @@ pub fn strip_version_attributes(files_of_interest: &HashMap<PathBuf, Vec<Package
 }
 
 pub fn replace_package_reference_element(contents: String) -> String {
-    let regex = Regex::new("(?<rest><PackageReference.*)(?<version> Version\\s*=\\s*\".*?\")").unwrap();
+    let regex =
+        Regex::new("(?<rest><PackageReference.*)(?<version> Version\\s*=\\s*\".*?\")").unwrap();
 
     regex.replace_all(&contents, "$rest").to_string()
 }

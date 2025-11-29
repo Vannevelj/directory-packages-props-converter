@@ -6,14 +6,17 @@ fn init() {
 }
 
 mod tests {
-    use directory_packages_props_converter::converter::{replace_package_reference_element};
+    use directory_packages_props_converter::converter::replace_package_reference_element;
 
     #[test]
     fn replace_package_reference_element_regular() {
         let element = r#"<PackageReference Include="My.Reference" Version="1.1.2" />"#;
 
         let replacement = replace_package_reference_element(element.to_string());
-        assert_eq!(r#"<PackageReference Include="My.Reference" />"#, replacement);
+        assert_eq!(
+            r#"<PackageReference Include="My.Reference" />"#,
+            replacement
+        );
     }
 
     #[test]
@@ -21,7 +24,10 @@ mod tests {
         let element = r#"<PackageReference Include="My.Reference" Version="[1.10.1, 2)" />"#;
 
         let replacement = replace_package_reference_element(element.to_string());
-        assert_eq!(r#"<PackageReference Include="My.Reference" />"#, replacement);
+        assert_eq!(
+            r#"<PackageReference Include="My.Reference" />"#,
+            replacement
+        );
     }
 
     #[test]
@@ -29,7 +35,10 @@ mod tests {
         let element = r#"<PackageReference Include="My.Reference" Version= "[1.10.1, 2)" />"#;
 
         let replacement = replace_package_reference_element(element.to_string());
-        assert_eq!(r#"<PackageReference Include="My.Reference" />"#, replacement);
+        assert_eq!(
+            r#"<PackageReference Include="My.Reference" />"#,
+            replacement
+        );
     }
 
     #[test]
@@ -37,7 +46,10 @@ mod tests {
         let element = r#"<PackageReference Include="My.Reference" Version ="[1.10.1, 2)" />"#;
 
         let replacement = replace_package_reference_element(element.to_string());
-        assert_eq!(r#"<PackageReference Include="My.Reference" />"#, replacement);
+        assert_eq!(
+            r#"<PackageReference Include="My.Reference" />"#,
+            replacement
+        );
     }
 
     #[test]
@@ -45,6 +57,9 @@ mod tests {
         let element = r#"<PackageReference Include="My.Reference" Version =   "[1.10.1, 2)"  />"#;
 
         let replacement = replace_package_reference_element(element.to_string());
-        assert_eq!(r#"<PackageReference Include="My.Reference"  />"#, replacement);
+        assert_eq!(
+            r#"<PackageReference Include="My.Reference"  />"#,
+            replacement
+        );
     }
 }

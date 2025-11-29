@@ -1,15 +1,15 @@
 mod options;
+use crate::options::Options as CLIopts;
 use directory_packages_props_converter::converter::{
     parse_path, strip_version_attributes, traverse_directories,
     write_directory_packages_props_file, PackageVersion,
 };
+use directory_packages_props_converter::fs::RealFs;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
 use structopt::StructOpt;
-use directory_packages_props_converter::fs::RealFs;
-use crate::options::Options as CLIopts;
 
 fn main() {
     let args = CLIopts::from_args();

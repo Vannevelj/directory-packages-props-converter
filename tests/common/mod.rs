@@ -70,11 +70,10 @@ impl Fs for MockFs {
     }
 
     fn read_to_string(&self, path: &std::path::Path) -> std::io::Result<String> {
-        Ok(
-            self.files_with_contents
-                .get(&PathBuf::from(path))
-                .expect("file not found in mock")
-                .to_string(),
-        )
+        Ok(self
+            .files_with_contents
+            .get(&PathBuf::from(path))
+            .expect("file not found in mock")
+            .to_string())
     }
 }

@@ -12,12 +12,12 @@ fn init() {
 mod common;
 
 mod tests {
-    use std::collections::{HashMap};
+    use std::collections::HashMap;
     use std::path::PathBuf;
 
+    use super::common::MockFs;
     use directory_packages_props_converter::converter::{traverse_directories, PackageVersion};
     use directory_packages_props_converter::fs::Fs;
-    use super::common::MockFs;
 
     fn run_traverse(fs: &impl Fs, root: &PathBuf) -> HashMap<PathBuf, Vec<PackageVersion>> {
         let mut files_of_interest: HashMap<PathBuf, Vec<PackageVersion>> = HashMap::new();
@@ -44,7 +44,10 @@ mod tests {
         let other = PathBuf::from("root/not_interesting.xml");
 
         let mock = MockFs::default()
-            .with_file(csproj.to_str().unwrap(), r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#)
+            .with_file(
+                csproj.to_str().unwrap(),
+                r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#,
+            )
             .with_file(ignore.to_str().unwrap(), "")
             .with_file(props.to_str().unwrap(), "<Project></Project>")
             .with_file(other.to_str().unwrap(), "");
@@ -69,7 +72,10 @@ mod tests {
         let mock = MockFs::default()
             .with_file(ignore1.to_str().unwrap(), "")
             .with_file(ignore2.to_str().unwrap(), "")
-            .with_file(csproj.to_str().unwrap(), r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#);
+            .with_file(
+                csproj.to_str().unwrap(),
+                r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#,
+            );
 
         let files_of_interest = run_traverse(&mock, &root);
         assert_eq!(1, files_of_interest.len());
@@ -86,7 +92,10 @@ mod tests {
         let props_nested = PathBuf::from("root3/sub/Directory.Build.props");
 
         let mock = MockFs::default()
-            .with_file(csproj_root.to_str().unwrap(), r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#)
+            .with_file(
+                csproj_root.to_str().unwrap(),
+                r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#,
+            )
             .with_file(props_nested.to_str().unwrap(), "<Project></Project>");
 
         let files_of_interest = run_traverse(&mock, &root);
@@ -108,7 +117,10 @@ mod tests {
         let mock = MockFs::default()
             .with_file("root_git/.gitignore", gitignore)
             .with_file(app.to_str().unwrap(), "<Project></Project>")
-            .with_file(bin_csproj.to_str().unwrap(), r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#)
+            .with_file(
+                bin_csproj.to_str().unwrap(),
+                r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#,
+            )
             .with_file(obj_props.to_str().unwrap(), "<Project></Project>");
 
         let files_of_interest = run_traverse(&mock, &root);
