@@ -54,9 +54,11 @@ pub fn build_ignore_set(fs_impl: &impl Fs, root: &Path) -> Option<GlobSet> {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
+
+        // ignore negations for now
         if line.starts_with('!') {
             continue;
-        } // ignore negations for now
+        }
 
         // Normalize: if it ends with '/', target directory and all descendants
         // If it starts with '/', anchor to root; otherwise match anywhere under root
