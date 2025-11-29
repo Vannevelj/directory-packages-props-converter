@@ -36,7 +36,7 @@ pub fn traverse_directories(
     traverse_with_ignores(fs_impl, path, path, files_of_interest, ignore_set.as_ref());
 }
 
-fn build_ignore_set(fs_impl: &impl Fs, root: &Path) -> Option<GlobSet> {
+pub fn build_ignore_set(fs_impl: &impl Fs, root: &Path) -> Option<GlobSet> {
     let gitignore = root.join(".gitignore");
     if !fs_impl.metadata_is_file(&gitignore) {
         return None;
