@@ -28,7 +28,7 @@ pub fn parse_path(path: &PathBuf) -> String {
 
 pub fn traverse_directories(
     fs_impl: &impl Fs,
-    path: &PathBuf,
+    path: &Path,
     files_of_interest: &mut HashMap<PathBuf, Vec<PackageVersion>>,
 ) {
     // Build ignore set once from root .gitignore and traverse with it
@@ -67,12 +67,10 @@ pub fn build_ignore_set(fs_impl: &impl Fs, root: &Path) -> Option<GlobSet> {
             } else {
                 format!("**/{}/**", line.trim_end_matches('/'))
             }
+        } else if line.starts_with('/') {
+            line.trim_start_matches('/').to_string()
         } else {
-            if line.starts_with('/') {
-                line.trim_start_matches('/').to_string()
-            } else {
-                format!("**/{}", line)
-            }
+            format!("**/{line}")
         };
 
         // Build a Glob relative to root; globset matches on Path, so we'll pass relative paths
@@ -104,7 +102,7 @@ fn traverse_with_ignores(
     ignore: Option<&GlobSet>,
 ) {
     if is_ignored(root, path, ignore) {
-        debug!("Ignoring path due to .gitignore: {:?}", path);
+        debug!("Ignoring path due to .gitignore: {path:?}");
         return;
     }
 
@@ -127,7 +125,7 @@ fn traverse_with_ignores(
         return;
     }
 
-    debug!("Diving into new directory: {:?}", path);
+    debug!("Diving into new directory: {path:?}");
 
     for entry_path in fs_impl.read_dir(path) {
         traverse_with_ignores(fs_impl, root, &entry_path, files_of_interest, ignore);
@@ -145,10 +143,7 @@ pub fn parse_package_version(contents: String) -> Vec<PackageVersion> {
     for package_reference_node in package_reference_nodes {
         let version_attribute = package_reference_node.attribute("Version");
         let include_attribute = package_reference_node.attribute("Include");
-        debug!(
-            "Evaluating <PackageReference>: {:?}",
-            package_reference_node
-        );
+        debug!("Evaluating <PackageReference>: {package_reference_node:?}");
 
         if let Some(raw_version) = version_attribute {
             let version = version_attribute.and_then(|attr| Version::parse(attr).ok());
@@ -192,8 +187,8 @@ pub fn write_directory_packages_props_file(
 
         match existing_reference {
             Some(existing) if reference.version > existing.version => {
-                let old = get_version(&existing);
-                let new = get_version(&existing);
+                let old = get_version(existing);
+                let new = get_version(existing);
 
                 debug!("Replacing {} {} with {}", reference.name, old, new);
                 chosen_references.insert(reference.name.to_owned(), reference.clone());
@@ -227,14 +222,14 @@ pub fn write_directory_packages_props_file(
                 .get(dependency.name.to_string())
                 .expect("Failed to find selected dependency version");
 
-            let old = get_version(&dependency);
-            let new = get_version(&selected_dependency);
+            let old = get_version(dependency);
+            let new = get_version(selected_dependency);
 
             // https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
             if dependency.version != selected_dependency.version {
                 info!(
                     "{}: Upgrading {} from \x1b[93m{}\x1b[0m to \x1b[92m{}\x1b[0m",
-                    strip_path(&filename),
+                    strip_path(filename),
                     dependency.name,
                     old,
                     new
@@ -263,8 +258,7 @@ pub fn write_directory_packages_props_file(
     .trim_start()
     .to_owned();
 
-    let mut sorted_references: Vec<&PackageVersion> =
-        chosen_references.values().into_iter().collect();
+    let mut sorted_references: Vec<&PackageVersion> = chosen_references.values().collect();
     sorted_references.sort_unstable_by_key(|dep| dep.name.to_lowercase());
     for package in sorted_references {
         let version_to_write = match &package.version {
@@ -297,7 +291,7 @@ fn strip_path(path: &Path) -> String {
 }
 
 pub fn strip_version_attributes(files_of_interest: &HashMap<PathBuf, Vec<PackageVersion>>) {
-    for (file, _) in files_of_interest {
+    for file in files_of_interest.keys() {
         let contents = fs::read_to_string(file).expect("Failed to read file");
         let result = replace_package_reference_element(contents);
         let mut file = File::create(file).expect("Failed to open file for writing");
