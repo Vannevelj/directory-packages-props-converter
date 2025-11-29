@@ -44,10 +44,10 @@ mod tests {
         let other = PathBuf::from("root/not_interesting.xml");
 
         let mock = MockFs::default()
-            .with_tree_file(csproj.to_str().unwrap(), None)
-            .with_tree_file(ignore.to_str().unwrap(), None)
-            .with_tree_file(props.to_str().unwrap(), None)
-            .with_tree_file(other.to_str().unwrap(), None);
+            .with_file(csproj.to_str().unwrap(), r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#)
+            .with_file(ignore.to_str().unwrap(), "")
+            .with_file(props.to_str().unwrap(), "<Project></Project>")
+            .with_file(other.to_str().unwrap(), "");
 
         let files_of_interest = run_traverse(&mock, &root);
 
@@ -67,9 +67,9 @@ mod tests {
         let csproj = PathBuf::from("root2/A/app.csproj");
 
         let mock = MockFs::default()
-            .with_tree_file(ignore1.to_str().unwrap(), None)
-            .with_tree_file(ignore2.to_str().unwrap(), None)
-            .with_tree_file(csproj.to_str().unwrap(), None);
+            .with_file(ignore1.to_str().unwrap(), "")
+            .with_file(ignore2.to_str().unwrap(), "")
+            .with_file(csproj.to_str().unwrap(), r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#);
 
         let files_of_interest = run_traverse(&mock, &root);
         assert_eq!(1, files_of_interest.len());
@@ -86,8 +86,8 @@ mod tests {
         let props_nested = PathBuf::from("root3/sub/Directory.Build.props");
 
         let mock = MockFs::default()
-            .with_tree_file(csproj_root.to_str().unwrap(), None)
-            .with_tree_file(props_nested.to_str().unwrap(), None);
+            .with_file(csproj_root.to_str().unwrap(), r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#)
+            .with_file(props_nested.to_str().unwrap(), "<Project></Project>");
 
         let files_of_interest = run_traverse(&mock, &root);
         assert_eq!(2, files_of_interest.len());
@@ -106,10 +106,10 @@ mod tests {
         let obj_props = PathBuf::from("root_git/A/obj/Directory.Build.props");
 
         let mock = MockFs::default()
-            .with_tree_file("root_git/.gitignore", Some(gitignore.to_string()))
-            .with_tree_file(app.to_str().unwrap(), None)
-            .with_tree_file(bin_csproj.to_str().unwrap(), None)
-            .with_tree_file(obj_props.to_str().unwrap(), None);
+            .with_file("root_git/.gitignore", gitignore)
+            .with_file(app.to_str().unwrap(), "<Project></Project>")
+            .with_file(bin_csproj.to_str().unwrap(), r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#)
+            .with_file(obj_props.to_str().unwrap(), "<Project></Project>");
 
         let files_of_interest = run_traverse(&mock, &root);
         assert!(files_of_interest.contains_key(&app));
@@ -128,9 +128,9 @@ mod tests {
         let skip = PathBuf::from("root_git2/A/skip.csproj");
 
         let mock = MockFs::default()
-            .with_tree_file("root_git2/.gitignore", Some(gitignore.to_string()))
-            .with_tree_file(skip.to_str().unwrap(), None)
-            .with_tree_file(keep.to_str().unwrap(), None);
+            .with_file("root_git2/.gitignore", gitignore)
+            .with_file(skip.to_str().unwrap(), "<Project></Project>")
+            .with_file(keep.to_str().unwrap(), "<Project></Project>");
 
         let files_of_interest = run_traverse(&mock, &root);
         assert!(!files_of_interest.contains_key(&skip));

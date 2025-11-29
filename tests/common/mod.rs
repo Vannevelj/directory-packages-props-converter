@@ -49,21 +49,10 @@ impl MockFs {
 
     // Public helper: provide a file path like "dir/sub/file.ext" and optional content
     // It will create the necessary directory entries and add the file content
-    pub fn with_tree_file(mut self, path: &str, content: Option<String>) -> Self {
-        let pb = PathBuf::from(path);
-        // default minimal project XML when not specified
-        let content = content
-            .unwrap_or_else(|| r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#.to_string());
-        self.add_path_hierarchy(&pb, true);
-        self.files_with_contents.insert(pb, content);
-        self
-    }
-
-    // Public helper: add a file with content without creating directory hierarchy
-    // Useful for tests that only check file presence (e.g., .gitignore)
     pub fn with_file(mut self, path: &str, content: &str) -> Self {
-        self.files_with_contents
-            .insert(PathBuf::from(path), content.to_string());
+        let pb = PathBuf::from(path);
+        self.add_path_hierarchy(&pb, true);
+        self.files_with_contents.insert(pb, content.to_string());
         self
     }
 }
